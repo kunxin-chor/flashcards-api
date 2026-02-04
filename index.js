@@ -111,12 +111,12 @@ async function main() {
 
     app.get("/flashcards/:id", async (req, res) => {
         try {
-            const id = Number(req.params.id);
-            if (!Number.isFinite(id)) {
+            const id = req.params.id;
+            if (!ObjectId.isValid(id)) {
                 return res.status(400).json({ message: "Invalid id" });
             }
 
-            const card = await flashcardsCollection.findOne({ id });
+            const card = await flashcardsCollection.findOne({ _id: new ObjectId(id) });
             if (!card) {
                 return res.status(404).json({ message: "Not found" });
             }
@@ -134,18 +134,16 @@ async function main() {
                 return res.status(400).json({ message: "front and back are required" });
             }
 
-            const last = await flashcardsCollection.find({}).sort({ id: -1 }).limit(1).toArray();
-            const nextId = last.length ? (Number(last[0].id) || 0) + 1 : 1;
+        
 
             const doc = {
-                id: nextId,
                 front,
                 back,
                 userId: req.user.userId,
             };
 
-            await flashcardsCollection.insertOne(doc);
-            return res.status(201).json(doc);
+            const results= await flashcardsCollection.insertOne(doc);
+            return res.status(201).json({...doc, id: results.insertedId });
         } catch (err) {
             return res.status(500).json({ message: "Server error" });
         }
@@ -153,8 +151,8 @@ async function main() {
 
     app.put("/flashcards/:id", authRequired, async (req, res) => {
         try {
-            const id = Number(req.params.id);
-            if (!Number.isFinite(id)) {
+            const id = req.params.id;
+            if (!ObjectId.isValid(id)) {
                 return res.status(400).json({ message: "Invalid id" });
             }
 
@@ -167,13 +165,13 @@ async function main() {
             }
 
             const result = await flashcardsCollection.findOneAndUpdate(
-                { id, userId: req.user.userId },
+                { _id: new ObjectId(id), userId: req.user.userId },
                 { $set: set },
                 { returnDocument: "after" }
             );
 
             if (!result.value) {
-                const exists = await flashcardsCollection.findOne({ id });
+                const exists = await flashcardsCollection.findOne({ _id: new ObjectId(id) });
                 if (!exists) return res.status(404).json({ message: "Not found" });
                 return res.status(403).json({ message: "Forbidden" });
             }
@@ -186,14 +184,14 @@ async function main() {
 
     app.delete("/flashcards/:id", authRequired, async (req, res) => {
         try {
-            const id = Number(req.params.id);
-            if (!Number.isFinite(id)) {
+            const id = req.params.id;
+            if (!ObjectId.isValid(id)) {
                 return res.status(400).json({ message: "Invalid id" });
             }
 
-            const result = await flashcardsCollection.deleteOne({ id, userId: req.user.userId });
+            const result = await flashcardsCollection.deleteOne({ _id: new ObjectId(id), userId: req.user.userId });
             if (result.deletedCount === 0) {
-                const exists = await flashcardsCollection.findOne({ id });
+                const exists = await flashcardsCollection.findOne({ _id: new ObjectId(id) });
                 if (!exists) return res.status(404).json({ message: "Not found" });
                 return res.status(403).json({ message: "Forbidden" });
             }
