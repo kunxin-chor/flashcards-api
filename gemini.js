@@ -5,6 +5,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
 const { quizUserTool, addFlashcardTool, geminiTools } = require('./tools');
 
+function serializeFlashcard(card) {
+    if (!card) return card;
+    const { _id, ...rest } = card;
+    return { ...rest, id: _id?.toString?.() ?? _id };
+}
+
 async function generateAssistantResponse(userId, message) {
     const tools = geminiTools;
     const systemPrompt = `You are a flashcard assistant.
@@ -55,14 +61,14 @@ back: "わたしはがくせいです。 (watashi wa gakusei desu). Pattern: A �
                 response:{
                     front:toolCall.args.front,
                     back:toolCall.args.back,
-                    _id:result
+                    id: result?.toString?.() ?? result
                 },
                 toolCalled:"addFlashcardTool"
             }
         } else if (toolCall.name == "quizUserTool") {
             const result = await quizUserTool(userId);
             return {
-                response:result,
+                response:serializeFlashcard(result),
                 toolCalled:"quizUserTool"
             };
         }

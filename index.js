@@ -16,6 +16,12 @@ const app = express();
 app.use(express.json())
 app.use(cors());
 
+function serializeFlashcard(card) {
+    if (!card) return card;
+    const { _id, ...rest } = card;
+    return { ...rest, id: _id?.toString?.() ?? _id };
+}
+
 function authRequired(req, res, next) {
     const header = req.headers.authorization;
     if (!header || !header.startsWith("Bearer ")) {
@@ -102,8 +108,8 @@ async function main() {
 
     app.get("/flashcards", async (req, res) => {
         try {
-            const cards = await flashcardsCollection.find({}).sort({ id: 1 }).toArray();
-            return res.json(cards);
+            const cards = await flashcardsCollection.find({}).sort({ _id: 1 }).toArray();
+            return res.json(cards.map(serializeFlashcard));
         } catch (err) {
             return res.status(500).json({ message: "Server error" });
         }
@@ -121,7 +127,7 @@ async function main() {
                 return res.status(404).json({ message: "Not found" });
             }
 
-            return res.json(card);
+            return res.json(serializeFlashcard(card));
         } catch (err) {
             return res.status(500).json({ message: "Server error" });
         }
@@ -134,16 +140,14 @@ async function main() {
                 return res.status(400).json({ message: "front and back are required" });
             }
 
-        
-
             const doc = {
                 front,
                 back,
                 userId: req.user.userId,
             };
 
-            const results= await flashcardsCollection.insertOne(doc);
-            return res.status(201).json({...doc, id: results.insertedId });
+            const results = await flashcardsCollection.insertOne(doc);
+            return res.status(201).json({ ...doc, id: results.insertedId.toString() });
         } catch (err) {
             return res.status(500).json({ message: "Server error" });
         }
@@ -176,7 +180,7 @@ async function main() {
                 return res.status(403).json({ message: "Forbidden" });
             }
 
-            return res.json(result.value);
+            return res.json(serializeFlashcard(result.value));
         } catch (err) {
             return res.status(500).json({ message: "Server error" });
         }
